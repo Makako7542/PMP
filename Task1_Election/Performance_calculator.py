@@ -25,9 +25,14 @@ def get_stats(election_date: str, ticker: str, period_length: int, rf_name: str,
         stock_data = stock_data['Close']
 
         if rf_name == 'german_3m':
-            rf_data = web.DataReader('IR3TIB01DEM156N', 'fred',
-                                     start_date=start_date, end_date=end_date)
-            rf_data = rf_data.squeeze()
+            monthly_rf_data = web.DataReader('IR3TIB01DEM156N', 'fred',
+                                     start_date, end_date)
+            monthly_rf_data.set_index('Date', inplace=True)
+            daily_date_range = pd.date_range(start=monthly_rf_data.index.min(), end=monthly_rf_data.index.max(),
+                                             freq='D')
+            daily_rf_data = pd.DataFrame(index=daily_date_range)
+            rf_data = daily_rf_data.join(monthly_rf_data).fillna(method='ffill')
+
         else:
             rf_data = yf.download(rf_name, start=start_date, end=end_date).dropna()
             rf_data = rf_data['Close']
@@ -99,5 +104,7 @@ def calculate_performance(election_dates: List[str], ticker_list: List[str], per
 
     return results_df
 
+stats_df = get_stats('2016-11-08', '^STOXX50E', period_length=3, rf_name='german_3m',
+                     period_type='pre')
 
 
