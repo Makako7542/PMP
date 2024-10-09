@@ -2,8 +2,9 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 from scipy.stats import skew, kurtosis
+from typing import List
 
-def get_stock_data(election_date: str, ticker: str, period_length: int, rf_ticker: str = '^STOXX',
+def get_stock_data(election_date: str, ticker: str, period_length: int, rf_ticker: str,
                    period_type: str = 'pre'):
     election_date = pd.to_datetime(election_date)
     if period_type == 'pre':
@@ -64,5 +65,11 @@ def get_stock_data(election_date: str, ticker: str, period_length: int, rf_ticke
 
     return stats_df
 
+def analyise_elections(election_dates: List[str], ticker_list: List[str], period_length: int = 3,
+                       rf_ticker: str = '^STOXX'):
+
+    for ticker in ticker_list:
+        for election_date in election_dates:
+            for period_type in ['pre', 'post', 'during']:
 
 
