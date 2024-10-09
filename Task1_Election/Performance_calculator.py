@@ -10,6 +10,7 @@ import pandas_datareader.data as web
 from yfinance.exceptions import YFPricesMissingError
 
 GERMAN_3M_TICKER = 'IR3TIB01DEM156N'
+AVERAGE_DAYS_IN_A_MONTH = 30.44
 
 def get_stats(election_date: str, ticker: str, period_length: int, rf_name: str,
                    period_type: str = 'pre'):
@@ -31,11 +32,13 @@ def get_stats(election_date: str, ticker: str, period_length: int, rf_name: str,
 
         if rf_name == 'german_3m':
             start_date_extended = (election_date - pd.DateOffset(months=period_length + 2)).strftime('%Y-%m-%d')
-            end_date_extended = (election_date + pd.DateOffset(period_length + 2)).strftime('%Y-%m-%d')
+            end_date_extended = (election_date + pd.DateOffset(months=period_length + 2)).strftime('%Y-%m-%d')
             monthly_rf_data = web.DataReader(GERMAN_3M_TICKER, 'fred',
                                      start_date_extended, end_date_extended)
+            # Convert percentage into decimal
             monthly_rf_data = monthly_rf_data / 100
-            rf_daily_rate = (1 + monthly_rf_data) ** (1 / 12) - 1
+            #Convert the monthly data to daily data
+            rf_daily_rate = (1 + monthly_rf_data) ** (1 / AVERAGE_DAYS_IN_A_MONTH) -1
             rf_data = rf_daily_rate.resample('D').ffill()
 
         else:
@@ -47,11 +50,14 @@ def get_stats(election_date: str, ticker: str, period_length: int, rf_name: str,
         rf_data = rf_data.reindex(stock_returns.index).fillna(method='ffill')
         excess_returns = stock_returns - rf_data
 
-        avg_returns = stock_returns.mean()
-        geo_avg_returns = (np.prod(1 + stock_returns)) ** (1 / len(stock_returns)) - 1
-        avg_excess_returns = excess_returns.mean()
-        geo_avg_excess_returns = (np.prod(1 + excess_returns)) ** (1 / len(excess_returns)) - 1
-        std_excess_returns = excess_returns.std()
+        # Annualization
+        avg_returns = stock_returns.mean() * 252
+        daily_geo_avg_returns = (np.prod(1 + stock_returns)) ** (1 / len(stock_returns)) - 1
+        geo_avg_returns = (1 + daily_geo_avg_returns) ** 252 - 1
+        avg_excess_returns = excess_returns.mean() * 252
+        daily_geo_avg_excess_returns = (np.prod(1 + excess_returns)) ** (1 / len(excess_returns)) - 1
+        geo_avg_excess_returns = (1 + daily_geo_avg_excess_returns) ** 252 - 1
+        std_excess_returns = excess_returns.std() * np.sqrt(252)
         sharpe_ratio = avg_excess_returns / std_excess_returns
         min_excess_returns = excess_returns.min()
         max_excess_returns = excess_returns.max()
@@ -60,25 +66,25 @@ def get_stats(election_date: str, ticker: str, period_length: int, rf_name: str,
 
 
         stats = {
-            'avg_returns': avg_returns,
-            'geo_avg_returns': geo_avg_returns,
-            'avg_excess_returns': avg_excess_returns,
-            'geo_avg_excess_returns': geo_avg_excess_returns,
-            'std_excess_returns': std_excess_returns,
-            'sharpe_ratio': sharpe_ratio,
-            'min_excess_returns': min_excess_returns,
-            'max_excess_returns': max_excess_returns,
-            'skew_excess_returns': skew_excess_returns,
-            'kurtosis_excess_returns': kurtosis_excess_returns,
+            'Annualized avg returns': avg_returns,
+            'Annualized geo avg returns': geo_avg_returns,
+            'Annualized avg excess returns': avg_excess_returns,
+            'Annualized geo avg excess returns': geo_avg_excess_returns,
+            'Annualized std excess returns': std_excess_returns,
+            'Annualized Sharpe ratio': sharpe_ratio,
+            'Min excess returns': min_excess_returns,
+            'Max excess returns': max_excess_returns,
+            'Skewness excess returns': skew_excess_returns,
+            'Kurtosis excess returns': kurtosis_excess_returns,
 
         }
 
     except ZeroDivisionError as e:
         warnings.warn(str(e))
         stats = {key: 'No data' for key in [
-            'avg_returns', 'geo_avg_returns', 'avg_excess_returns', 'geo_avg_excess_returns',
-            'std_excess_returns', 'sharpe_ratio', 'min_excess_returns', 'max_excess_returns',
-            'skew_excess_returns', 'kurtosis_excess_returns'
+            'Annualized avg returns', 'Annualized geo avg returns', 'Annualized avg excess returns',
+            'Annualized geo avg excess returns', 'Annualized std excess returns', 'Annualized Sharpe ratio',
+            'Min excess returns', 'Max excess returns', 'Skewness excess returns', 'Kurtosis excess returns'
         ]}
 
     stats_df = pd.DataFrame([stats])
@@ -91,6 +97,7 @@ def get_stats(election_date: str, ticker: str, period_length: int, rf_name: str,
         stats_df['Period type'] = 'During election'
 
     stats_df['Period length'] = period_length
+    stats_df['Year'] = election_date.year
     print(f'Calculation finished for ticker {ticker} for election date {election_date} with period type {period_type}')
 
     return stats_df
@@ -109,7 +116,7 @@ def calculate_performance(election_dates: List[str], ticker_list: List[str], per
                 else:
                     results_df = pd.concat([results_df, stats_df], ignore_index=True)
 
-    results_df.to_excel(f'Election_performance_metrics.xlsx', index=False)
+    results_df.to_excel(f'Performance_tables/Election_performance_metrics.xlsx', index=False)
     return results_df
 
 # stats_df = get_stats('2016-11-08', '^STOXX50E', period_length=3, rf_name='german_3m',
