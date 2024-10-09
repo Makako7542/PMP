@@ -4,7 +4,7 @@ import numpy as np
 from scipy.stats import skew, kurtosis
 from typing import List
 
-def get_stock_data(election_date: str, ticker: str, period_length: int, rf_ticker: str,
+def get_stats(election_date: str, ticker: str, period_length: int, rf_ticker: str,
                    period_type: str = 'pre'):
     election_date = pd.to_datetime(election_date)
     if period_type == 'pre':
@@ -65,11 +65,19 @@ def get_stock_data(election_date: str, ticker: str, period_length: int, rf_ticke
 
     return stats_df
 
-def analyise_elections(election_dates: List[str], ticker_list: List[str], period_length: int = 3,
+def calculate_performance(election_dates: List[str], ticker_list: List[str], period_length: int = 3,
                        rf_ticker: str = '^STOXX'):
+
+    results_df = pd.DataFrame()
 
     for ticker in ticker_list:
         for election_date in election_dates:
             for period_type in ['pre', 'post', 'during']:
+                stats_df = get_stats(election_date, ticker, period_length, rf_ticker, period_type)
+                if results_df.empty:
+                    results_df = stats_df
+                else:
+                    results_df = results_df.append(stats_df)
 
+    return results_df
 
