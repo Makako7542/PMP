@@ -4,8 +4,9 @@ import numpy as np
 from scipy.stats import skew, kurtosis
 from typing import List
 import warnings
+import pandas_datareader.data as web
 
-def get_stats(election_date: str, ticker: str, period_length: int, rf_ticker: str,
+def get_stats(election_date: str, ticker: str, period_length: int, rf_name: str,
                    period_type: str = 'pre'):
     election_date = pd.to_datetime(election_date)
     if period_type == 'pre':
@@ -22,8 +23,14 @@ def get_stats(election_date: str, ticker: str, period_length: int, rf_ticker: st
 
         stock_data = yf.download(ticker, start=start_date, end=end_date).dropna()
         stock_data = stock_data['Close']
-        rf_data = yf.download(rf_ticker, start=start_date, end=end_date).dropna()
-        rf_data = rf_data['Close']
+
+        if rf_name == 'german_3m':
+            rf_data = web.DataReader('IR3TIB01DEM156N', 'fred',
+                                     start_date=start_date, end_date=end_date)
+            rf_data = rf_data.squeeze()
+        else:
+            rf_data = yf.download(rf_name, start=start_date, end=end_date).dropna()
+            rf_data = rf_data['Close']
 
         stock_returns = stock_data.pct_change().dropna()
         rf_returns = rf_data.pct_change().dropna()
@@ -77,18 +84,20 @@ def get_stats(election_date: str, ticker: str, period_length: int, rf_ticker: st
     return stats_df
 
 def calculate_performance(election_dates: List[str], ticker_list: List[str], period_length: int = 3,
-                       rf_ticker: str = '^STOXX'):
+                       rf_name: str = '^STOXX'):
 
     results_df = pd.DataFrame()
 
     for ticker in ticker_list:
         for election_date in election_dates:
             for period_type in ['pre', 'post', 'during']:
-                stats_df = get_stats(election_date, ticker, period_length, rf_ticker, period_type)
+                stats_df = get_stats(election_date, ticker, period_length, rf_name, period_type)
                 if results_df.empty:
                     results_df = stats_df
                 else:
                     results_df = results_df.append(stats_df)
 
     return results_df
+
+
 
