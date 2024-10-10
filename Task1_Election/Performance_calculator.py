@@ -7,7 +7,6 @@ from scipy.stats import skew, kurtosis
 from typing import List
 import warnings
 import pandas_datareader.data as web
-from yfinance.exceptions import YFPricesMissingError
 
 GERMAN_3M_TICKER = 'IR3TIB01DEM156N'
 AVERAGE_DAYS_IN_A_MONTH = 30.44
@@ -116,7 +115,7 @@ def calculate_performance(election_dates: List[str], ticker_list: List[str], per
                 else:
                     results_df = pd.concat([results_df, stats_df], ignore_index=True)
 
-    results_df.to_excel(f'Performance_tables/Election_performance_metrics.xlsx', index=False)
+    results_df.to_excel('Performance_tables/Election_performance_metrics.xlsx', index=False)
     return results_df
 
 # stats_df = get_stats('2016-11-08', '^STOXX50E', period_length=3, rf_name='german_3m',
@@ -135,6 +134,40 @@ election_dates = [
     '2000-11-07'
 ]
 
-results_df = calculate_performance(election_dates, ticker_list, period_length=3, rf_name='german_3m')
+# results_df = calculate_performance(election_dates, ticker_list, period_length=3, rf_name='german_3m')
 
+import pandas as pd
+
+def calculate_growth():
+    file_path = 'Performance_tables/Election_performance_metrics.xlsx'
+
+    df = pd.read_excel(file_path, sheet_name='Sheet1')
+
+    pre_post_df = df[(df['Period type'] == 'Pre-election') | (df['Period type'] == 'Post-election')]
+
+    pre_post_pivot = pre_post_df.pivot_table(
+        index=['Index/stock name', 'Year'],
+        columns='Period type',
+        values=[col for col in df.columns if col not in ['Period type', 'Period length', 'Sector']],
+        aggfunc='first'
+    )
+
+    pre_post_pivot = pre_post_pivot.apply(pd.to_numeric, errors='coerce')
+
+    pre_post_pivot.fillna(0, inplace=True)
+
+    growth_df_corrected = pre_post_pivot.apply(
+        lambda x: (x.xs('Post-election', level='Period type') - x.xs('Pre-election', level='Period type')),
+        axis=1
+    )
+
+    growth_df_corrected.reset_index(inplace=True)
+
+    output_path = 'Performance_tables/Election_growth_metrics.xlsx'
+    growth_df_corrected.to_excel(output_path, index=False)
+
+    return growth_df_corrected
+
+
+growth_df = calculate_growth()
 
