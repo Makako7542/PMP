@@ -131,12 +131,28 @@ election_dates = [
     '2012-11-06',
     '2008-11-04',
     '2004-11-02',
-    '2000-11-07'
+    '2000-11-07',
+    '1996-11-05',
+    '1992-11-03',
+    '1988-11-08',
+#     '1984-11-06',
+#     '1980-11-04',
+#     '1976-11-02',
+#     '1972-11-07',
+#     '1968-11-05',
+#     '1964-11-03',
+#     '1960-11-08',
+#     '1956-11-06',
+#     '1952-11-04',
+#     '1948-11-02',
+#     '1944-11-07',
+#     '1940-11-05',
+#     '1936-11-03',
+#     '1932-11-08'
 ]
 
-# results_df = calculate_performance(election_dates, ticker_list, period_length=3, rf_name='german_3m')
 
-import pandas as pd
+# results_df = calculate_performance(election_dates, ticker_list, period_length=3, rf_name='german_3m')
 
 def calculate_growth():
     file_path = 'Performance_tables/Election_performance_metrics.xlsx'
@@ -158,10 +174,12 @@ def calculate_growth():
 
     growth_df_corrected = pre_post_pivot.apply(
         lambda x: (x.xs('Post-election', level='Period type') - x.xs('Pre-election', level='Period type')),
-        axis=1
-    )
+        axis=1)
 
     growth_df_corrected.reset_index(inplace=True)
+
+    growth_df_corrected = (growth_df_corrected.applymap
+        (lambda value: 'No data' if isinstance(value, (int, float)) and value == 0 else value))
 
     output_path = 'Performance_tables/Election_growth_metrics.xlsx'
     growth_df_corrected.to_excel(output_path, index=False)
